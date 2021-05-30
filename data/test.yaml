@@ -1,0 +1,29 @@
+#线上环境测试数据
+login_user:
+  loginName: 17711090001
+  passWord: 62c8ad0a15d9d1ca38d5dee762a16e01
+  companyId: 011336229198234378242
+
+user:
+  employeeName: AutoTest
+  idCard: 110101199001010111
+  bankCard: 110101199001010111
+  phone: 18001140005
+  companyId: 011336229198234378242
+
+users:
+  - employeeName: Auto员工一
+    idCard: 110101199001010121
+    bankCard: 110101199001010121
+    phone: 18001140091
+    companyId: 011336229198234378242
+  - employeeName: Auto员工二
+    idCard: 110101199001010122
+    bankCard: 110101199001010122
+    phone: 18001140092
+    companyId: 011336229198234378242
+  - employeeName: Auto员工三
+    idCard: 110101199001010123
+    bankCard: 110101199001010123
+    phone: 18001140093
+    companyId: 011336229198234378242

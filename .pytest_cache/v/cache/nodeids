@@ -1,0 +1,4 @@
+[
+  "testcases/test_add_user.py::test_add_user_01",
+  "testcases/test_login.py::test_login_01"
+]

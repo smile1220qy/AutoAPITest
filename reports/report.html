@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <style>body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  /* do not increase min-width as some may use split screens */
+  min-width: 800px;
+  color: #999;
+}
+
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+h2 {
+  font-size: 16px;
+  color: black;
+}
+
+p {
+  color: black;
+}
+
+a {
+  color: #999;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+#environment td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+}
+#environment tr:nth-child(odd) {
+  background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed,
+.passed .col-result {
+  color: green;
+}
+
+span.skipped,
+span.xfailed,
+span.rerun,
+.skipped .col-result,
+.xfailed .col-result,
+.rerun .col-result {
+  color: orange;
+}
+
+span.error,
+span.failed,
+span.xpassed,
+.error .col-result,
+.failed .col-result,
+.xpassed .col-result {
+  color: red;
+}
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+#results-table {
+  border: 1px solid #e6e6e6;
+  color: #999;
+  font-size: 12px;
+  width: 100%;
+}
+#results-table th,
+#results-table td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+  text-align: left;
+}
+#results-table th {
+  font-weight: bold;
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+.log {
+  background-color: #e6e6e6;
+  border: 1px solid #e6e6e6;
+  color: black;
+  display: block;
+  font-family: "Courier New", Courier, monospace;
+  height: 230px;
+  overflow-y: scroll;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+.log:only-child {
+  height: inherit;
+}
+
+div.image {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.image img {
+  width: 320px;
+}
+
+div.video {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.video video {
+  overflow: hidden;
+  width: 320px;
+  height: 240px;
+}
+
+.collapsed {
+  display: none;
+}
+
+.expander::after {
+  content: " (show details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.collapser::after {
+  content: " (hide details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+  cursor: pointer;
+}
+
+.sort-icon {
+  font-size: 0px;
+  float: left;
+  margin-right: 5px;
+  margin-top: 5px;
+  /*triangle*/
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+.inactive .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #E6E6E6;
+}
+.asc.active .sort-icon {
+  /*finish triangle*/
+  border-bottom: 8px solid #999;
+}
+.desc.active .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 28-May-2021 at 11:46:14 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Base URL</td>
+        <td></td></tr>
+      <tr>
+        <td>Capabilities</td>
+        <td>{}</td></tr>
+      <tr>
+        <td>Driver</td>
+        <td>None</td></tr>
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>D:\java\jdk1.8.0</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.3"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.19041-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"allure-pytest": "2.9.42", "base-url": "1.4.2", "forked": "1.3.0", "html": "3.1.1", "metadata": "1.11.0", "rerunfailures": "9.1.1", "selenium": "2.0.1", "variables": "1.9.0", "webdriver": "1.7.0", "xdist": "2.2.1", "yaml": "1.2.1"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.7.6</td></tr></table>
+    <h2>Summary</h2>
+    <p>1 tests ran in 1.94 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">1 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>, <input checked="true" class="filter" data-test-result="rerun" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="rerun">0 rerun</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/test_add_user.py::test_add_user_01</td>
+          <td class="col-duration">1.48</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:user.py:11 {&quot;success&quot;:true,&quot;code&quot;:&quot;200&quot;,&quot;message&quot;:&quot;处理成功!&quot;,&quot;data&quot;:{&quot;verifyFourFactor&quot;:0,&quot;companyStatus&quot;:&quot;04&quot;,&quot;userRole&quot;:[{&quot;id&quot;:&quot;311349644109652156418&quot;,&quot;roleId&quot;:&quot;291336932483794722817&quot;,&quot;userId&quot;:&quot;211349644109626990593&quot;,&quot;createTime&quot;:&quot;2021-01-14 17:06:45&quot;,&quot;updateTime&quot;:null,&quot;isDelete&quot;:0}],&quot;menu&quot;:[{&quot;functionId&quot;:&quot;10000&quot;,&quot;functionName&quot;:&quot;工作台&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/Analysis&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;100000&quot;,&quot;functionName&quot;:&quot;一键代发&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/PayrollForm&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;100010&quot;,&quot;functionName&quot;:&quot;一键代发&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;100000&quot;,&quot;parentroleName&quot;:&quot;一键代发&quot;,&quot;url&quot;:&quot;/PayrollForm&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;100020&quot;,&quot;functionName&quot;:&quot;初始化设置&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;10010&quot;,&quot;parentroleName&quot;:&quot;工作台&quot;,&quot;url&quot;:&quot;/Instep&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;10010&quot;,&quot;functionName&quot;:&quot;工作台&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;10000&quot;,&quot;parentroleName&quot;:&quot;工作台&quot;,&quot;url&quot;:&quot;/Analysis&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;01&quot;},{&quot;functionId&quot;:&quot;10011&quot;,&quot;functionName&quot;:&quot;工作台工资条上传&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;10010&quot;,&quot;parentroleName&quot;:&quot;工作台&quot;,&quot;url&quot;:&quot;/PayrollForm&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20000&quot;,&quot;functionName&quot;:&quot;代发工资&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/PaySlip&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20010&quot;,&quot;functionName&quot;:&quot;代发管理&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;20000&quot;,&quot;parentroleName&quot;:&quot;代发工资&quot;,&quot;url&quot;:&quot;/PaySlip&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001001&quot;,&quot;functionName&quot;:&quot;上传工资表&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;/PayrollForm&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001002&quot;,&quot;functionName&quot;:&quot;批量导出&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001003&quot;,&quot;functionName&quot;:&quot;批量导出&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001004&quot;,&quot;functionName&quot;:&quot;查看审批&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;/ApprovalList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001005&quot;,&quot;functionName&quot;:&quot;查询状态&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001006&quot;,&quot;functionName&quot;:&quot;查看代发&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001007&quot;,&quot;functionName&quot;:&quot;工资表明细&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001009&quot;,&quot;functionName&quot;:&quot;下载回执&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20012&quot;,&quot;functionName&quot;:&quot;查看代发&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;/SendDetail&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20013&quot;,&quot;functionName&quot;:&quot;工资条推送&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;/PaySlipDetail&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001301&quot;,&quot;functionName&quot;:&quot;工资条设置&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20013&quot;,&quot;parentroleName&quot;:&quot;工资条推送&quot;,&quot;url&quot;:&quot;/PaySlipTempSetting&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001302&quot;,&quot;functionName&quot;:&quot;全部推送&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20013&quot;,&quot;parentroleName&quot;:&quot;工资条推送&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001303&quot;,&quot;functionName&quot;:&quot;全部撤回&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20013&quot;,&quot;parentroleName&quot;:&quot;工资条推送&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001304&quot;,&quot;functionName&quot;:&quot;详情&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20013&quot;,&quot;parentroleName&quot;:&quot;工资条推送&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001305&quot;,&quot;functionName&quot;:&quot;撤回&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20013&quot;,&quot;parentroleName&quot;:&quot;工资条推送&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2001306&quot;,&quot;functionName&quot;:&quot;推送&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20013&quot;,&quot;parentroleName&quot;:&quot;工资条推送&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20015&quot;,&quot;functionName&quot;:&quot;申请代发&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:null,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20017&quot;,&quot;functionName&quot;:&quot;工资表明细&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20010&quot;,&quot;parentroleName&quot;:&quot;代发管理&quot;,&quot;url&quot;:&quot;/UploadDetail&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20020&quot;,&quot;functionName&quot;:&quot;员工反馈&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;20000&quot;,&quot;parentroleName&quot;:&quot;代发工资&quot;,&quot;url&quot;:&quot;/Feedback&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20030&quot;,&quot;functionName&quot;:&quot;数据分析&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;20000&quot;,&quot;parentroleName&quot;:&quot;代发工资&quot;,&quot;url&quot;:&quot;/DataStatistics&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20040&quot;,&quot;functionName&quot;:&quot;系统设置&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;20000&quot;,&quot;parentroleName&quot;:&quot;代发工资&quot;,&quot;url&quot;:&quot;/PayslipSetting&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;20050&quot;,&quot;functionName&quot;:&quot;代发账户&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;20000&quot;,&quot;parentroleName&quot;:&quot;代发工资&quot;,&quot;url&quot;:&quot;/AccountMaintain&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2005001&quot;,&quot;functionName&quot;:&quot;添加账户&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20050&quot;,&quot;parentroleName&quot;:&quot;代发账户&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;2005002&quot;,&quot;functionName&quot;:&quot;解绑&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;20050&quot;,&quot;parentroleName&quot;:&quot;代发账户&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;30000&quot;,&quot;functionName&quot;:&quot;员工管理&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/UserList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;30010&quot;,&quot;functionName&quot;:&quot;员工管理&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;30000&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;/UserList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;01&quot;},{&quot;functionId&quot;:&quot;3001001&quot;,&quot;functionName&quot;:&quot;添加员工&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;3001002&quot;,&quot;functionName&quot;:&quot;批量导入&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;3001003&quot;,&quot;functionName&quot;:&quot;下载模板&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;3001004&quot;,&quot;functionName&quot;:&quot;批量导出&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;3001005&quot;,&quot;functionName&quot;:&quot;重置工资条密码&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;3001006&quot;,&quot;functionName&quot;:&quot;删除员工&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;3001007&quot;,&quot;functionName&quot;:&quot;编辑&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;30010&quot;,&quot;parentroleName&quot;:&quot;员工管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;40000&quot;,&quot;functionName&quot;:&quot;审批管理&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/ApprovalList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;40010&quot;,&quot;functionName&quot;:&quot;审批&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;40000&quot;,&quot;parentroleName&quot;:&quot;审批管理&quot;,&quot;url&quot;:&quot;/ApprovalList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;40011&quot;,&quot;functionName&quot;:&quot;审批设置&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;40000&quot;,&quot;parentroleName&quot;:&quot;审批管理&quot;,&quot;url&quot;:&quot;/ApprovalSettingList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;4001101&quot;,&quot;functionName&quot;:&quot;审批设置&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;40011&quot;,&quot;parentroleName&quot;:&quot;审批设置&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;4001102&quot;,&quot;functionName&quot;:&quot;编辑&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;40011&quot;,&quot;parentroleName&quot;:&quot;审批设置&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;40013&quot;,&quot;functionName&quot;:&quot;详情&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;40010&quot;,&quot;parentroleName&quot;:&quot;审批&quot;,&quot;url&quot;:null,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;40014&quot;,&quot;functionName&quot;:&quot;审批&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;40010&quot;,&quot;parentroleName&quot;:&quot;审批&quot;,&quot;url&quot;:null,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;40016&quot;,&quot;functionName&quot;:&quot;撤回&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;40010&quot;,&quot;parentroleName&quot;:&quot;审批&quot;,&quot;url&quot;:null,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;60000&quot;,&quot;functionName&quot;:&quot;企业管理&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/EnterpriseList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;60010&quot;,&quot;functionName&quot;:&quot;企业信息&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;60000&quot;,&quot;parentroleName&quot;:&quot;企业管理&quot;,&quot;url&quot;:&quot;/EnterpriseList&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6001001&quot;,&quot;functionName&quot;:&quot;添加企业&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60010&quot;,&quot;parentroleName&quot;:&quot;企业信息&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6001002&quot;,&quot;functionName&quot;:&quot;启用&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60010&quot;,&quot;parentroleName&quot;:&quot;企业信息&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6001003&quot;,&quot;functionName&quot;:&quot;停用&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60010&quot;,&quot;parentroleName&quot;:&quot;企业信息&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6001004&quot;,&quot;functionName&quot;:&quot;企业信息详情&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60010&quot;,&quot;parentroleName&quot;:&quot;企业信息&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;60011&quot;,&quot;functionName&quot;:&quot;企业信息详情&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;60010&quot;,&quot;parentroleName&quot;:&quot;企业信息&quot;,&quot;url&quot;:&quot;/EnterpriseDetail&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;60020&quot;,&quot;functionName&quot;:&quot;企业认证&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;60000&quot;,&quot;parentroleName&quot;:&quot;企业管理&quot;,&quot;url&quot;:&quot;/MajorCertified&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;60030&quot;,&quot;functionName&quot;:&quot;用户管理&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;60000&quot;,&quot;parentroleName&quot;:&quot;企业管理&quot;,&quot;url&quot;:&quot;/AcctAuth&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003001&quot;,&quot;functionName&quot;:&quot;添加管理员&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003002&quot;,&quot;functionName&quot;:&quot;用户启用&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003003&quot;,&quot;functionName&quot;:&quot;用户停用&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003004&quot;,&quot;functionName&quot;:&quot;用户编辑&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003005&quot;,&quot;functionName&quot;:&quot;用户删除&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003006&quot;,&quot;functionName&quot;:&quot;添加角色&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003007&quot;,&quot;functionName&quot;:&quot;角色启用&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003008&quot;,&quot;functionName&quot;:&quot;角色停用&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003009&quot;,&quot;functionName&quot;:&quot;角色编辑&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003010&quot;,&quot;functionName&quot;:&quot;角色删除&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;6003011&quot;,&quot;functionName&quot;:&quot;设置权限&quot;,&quot;functionType&quot;:&quot;20&quot;,&quot;parentroleId&quot;:&quot;60030&quot;,&quot;parentroleName&quot;:&quot;用户管理&quot;,&quot;url&quot;:&quot;&quot;,&quot;icon&quot;:&quot; &quot;,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;91000&quot;,&quot;functionName&quot;:&quot;操作日志&quot;,&quot;functionType&quot;:&quot;00&quot;,&quot;parentroleId&quot;:null,&quot;parentroleName&quot;:null,&quot;url&quot;:&quot;/OperationLogList&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;},{&quot;functionId&quot;:&quot;91010&quot;,&quot;functionName&quot;:&quot;操作日志&quot;,&quot;functionType&quot;:&quot;10&quot;,&quot;parentroleId&quot;:&quot;91000&quot;,&quot;parentroleName&quot;:&quot;操作日志&quot;,&quot;url&quot;:&quot;/OperationLogList&quot;,&quot;icon&quot;:null,&quot;status&quot;:&quot;00&quot;}],&quot;userinfo&quot;:{&quot;isFirstLogin&quot;:true,&quot;id&quot;:&quot;211349644109626990593&quot;,&quot;userName&quot;:&quot;红红&quot;,&quot;loginName&quot;:&quot;17711090001&quot;,&quot;userStatus&quot;:&quot;0&quot;,&quot;lastLoginTime&quot;:null,&quot;createTime&quot;:&quot;2021-01-14 17:06:45&quot;,&quot;orgNo&quot;:&quot;011336229198234378242_&quot;,&quot;sex&quot;:null,&quot;email&quot;:null,&quot;phone&quot;:&quot;17711090001&quot;,&quot;orgName&quot;:null,&quot;updateTime&quot;:&quot;2021-04-02 15:20:50&quot;,&quot;companyId&quot;:&quot;011336229198234378242&quot;,&quot;employeeId&quot;:&quot;021336245157993111554&quot;,&quot;businessId&quot;:&quot;921046912573&quot;,&quot;type&quot;:&quot;00&quot;},&quot;token&quot;:&quot;eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMTEzNDk2NDQxMDk2MjY5OTA1OTMiLCJwaG9uZSI6IjE3NzExMDkwMDAxIiwiY29tcGFueUlkIjoiMDExMzM2MjI5MTk4MjM0Mzc4MjQyIiwidG9rZW5TaWduIjoiNDFiODNmOGUwOGFhNDhhOTgwOGFjOTc0MWQ4N2NhMGMiLCJpYXQiOjE2MjIxNzMwODEsImV4cCI6MTYyMjE3NDg4MX0.epB2w9glb4EQT8PLwFhad54b4YIT9JwRO17_Wi9mdq0&quot;},&quot;time&quot;:&quot;2021-05-28 11:38:01&quot;}
+INFO     root:user.py:13 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMTEzNDk2NDQxMDk2MjY5OTA1OTMiLCJwaG9uZSI6IjE3NzExMDkwMDAxIiwiY29tcGFueUlkIjoiMDExMzM2MjI5MTk4MjM0Mzc4MjQyIiwidG9rZW5TaWduIjoiNDFiODNmOGUwOGFhNDhhOTgwOGFjOTc0MWQ4N2NhMGMiLCJpYXQiOjE2MjIxNzMwODEsImV4cCI6MTYyMjE3NDg4MX0.epB2w9glb4EQT8PLwFhad54b4YIT9JwRO17_Wi9mdq0
+INFO     root:user.py:48 新增员工接口返回{&#x27;success&#x27;: True, &#x27;code&#x27;: &#x27;200&#x27;, &#x27;message&#x27;: &#x27;处理成功!&#x27;, &#x27;data&#x27;: None, &#x27;time&#x27;: &#x27;2021-05-28 11:38:02&#x27;}<br/></div></td></tr></tbody></table></body></html>
